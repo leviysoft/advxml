@@ -5,7 +5,7 @@ import sbt.{CrossVersion, _}
   *
   * @author geirolad
   */
-object Dependencies {
+object ProjectDependencies {
 
   lazy val common: Seq[ModuleID] = Seq(
     //SCALA
@@ -27,10 +27,20 @@ object Dependencies {
     lazy val compilerPluginsFor3: Seq[ModuleID] = Nil
   }
 
-  lazy val extraDependenciesForScala2_12: Seq[ModuleID] =
-    Seq("org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0")
+  object Core {
 
-  lazy val extraDependenciesForScala2_13: Seq[ModuleID] = Nil
+    lazy val extraDependenciesForScala2_13: Seq[ModuleID] = Nil
 
-  lazy val extraDependenciesForScala3: Seq[ModuleID] = Nil
+    lazy val extraDependenciesForScala3: Seq[ModuleID] = Nil
+  }
+
+  object Generic {
+
+    lazy val extraDependenciesForScala2_13: Seq[ModuleID] = Seq(
+      "com.softwaremill.magnolia1_2" % "magnolia_2.13" % "1.0.0-M5",
+      "org.scala-lang" % "scala-reflect" % "2.13.6"
+    )
+
+    lazy val extraDependenciesForScala3: Seq[ModuleID] = Nil
+  }
 }

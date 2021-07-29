@@ -1,13 +1,12 @@
 import sbt.{Resolver, _}
 import sbt.librarymanagement.MavenRepository
 
-/**
-  * Advxml
+/** Advxml
   * Created by geirolad on 26/07/2019.
   *
   * @author geirolad
   */
-object Resolvers {
+object ProjectResolvers {
 
   lazy val all: Seq[MavenRepository] = Seq(
     Resolver.sonatypeRepo("public"),

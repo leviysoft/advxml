@@ -1,3 +1,5 @@
+import sbt.Keys.libraryDependencies
+
 val prjname = "advxml"
 inThisBuild(
   List(
@@ -19,33 +21,58 @@ inThisBuild(
 //## global project to no publish ##
 lazy val advxml: Project = project
   .in(file("."))
-  .settings(allSettings)
   .settings(noPublishSettings)
-  .aggregate(core)
+  .aggregate(core, generic)
 
 lazy val core: Project =
   buildModule("core", toPublish = true)
+    .settings(
+      libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) => ProjectDependencies.Core.extraDependenciesForScala2_13
+        case Some((3, _))  => ProjectDependencies.Core.extraDependenciesForScala3
+        case _             => Nil
+      })
+    )
+
+lazy val generic: Project = {
+  /* NOT READY FOR RELEASE */
+  buildModule("generic", toPublish = false)
+    .dependsOn(core)
+    .settings(
+      libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) => ProjectDependencies.Generic.extraDependenciesForScala2_13
+        case Some((3, _))  => ProjectDependencies.Generic.extraDependenciesForScala3
+        case _             => Nil
+      })
+    )
+}
 
 //=============================== MODULES UTILS ===============================
 def buildModule(path: String, toPublish: Boolean = false): Project = {
   val id = path.split("-").reduce(_ + _.capitalize)
-  Project(id, file(s"modules/$path"))
-    .configure(buildProject(path, toPublish))
+  Project(id, file(s"modules/$path")).configure(buildProject(path, toPublish))
 }
 
-def buildProject(path: String, toPublish: Boolean = false)(project: Project) = {
+def buildProject(path: String, toPublish: Boolean = false)(project: Project): Project = {
   val docName = path.split("-").mkString(" ")
-  project.settings(
-    description    := s"$prjname $docName",
-    moduleName     := s"$prjname-$path",
-    name           := s"$prjname $docName",
-    publish / skip := !toPublish,
-    allSettings
-  )
+  project
+    .settings(
+      description    := s"$prjname $docName",
+      moduleName     := s"$prjname-$path",
+      name           := s"$prjname $docName",
+      publish / skip := !toPublish
+    )
+    .settings(
+      (if (!toPublish) {
+         noPublishSettings
+       } else {
+         Nil
+       }): _*
+    )
+    .settings(baseSettings: _*)
 }
 
 //=============================== SETTINGS ===============================
-lazy val allSettings = baseSettings ++ compilePlugins
 
 lazy val noPublishSettings = Seq(
   publish         := {},
@@ -56,7 +83,7 @@ lazy val noPublishSettings = Seq(
 
 lazy val baseSettings = Seq(
   //scala options
-  crossScalaVersions := List("2.12.14", "2.13.6", "3.0.1"),
+  crossScalaVersions := List("2.13.6", "3.0.1"),
   scalaVersion       := crossScalaVersions.value.head,
   scalacOptions ++= scalacSettings(scalaVersion.value),
   Compile / console / scalacOptions --= Seq(
@@ -64,25 +91,17 @@ lazy val baseSettings = Seq(
     "-Xfatal-warnings"
   ),
   //dependencies
-  resolvers ++= Resolvers.all,
-  libraryDependencies ++= Dependencies.common,
+  resolvers ++= ProjectResolvers.all,
+  libraryDependencies ++= ProjectDependencies.common,
+  //compiles plugins
   libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) => Dependencies.extraDependenciesForScala2_12
-    case Some((2, 13)) => Dependencies.extraDependenciesForScala2_13
-    case Some((3, _))  => Dependencies.extraDependenciesForScala3
-    case _             => Nil
-  })
-)
-
-lazy val compilePlugins = Seq(
-  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, _)) => Dependencies.Plugins.compilerPluginsFor2
-    case Some((3, _)) => Dependencies.Plugins.compilerPluginsFor3
+    case Some((2, _)) => ProjectDependencies.Plugins.compilerPluginsFor2
+    case Some((3, _)) => ProjectDependencies.Plugins.compilerPluginsFor3
     case _            => Nil
   })
 )
 
-def scalacSettings(scalaVersion: String): Seq[String] = {
+def scalacSettings(scalaVersion: String): Seq[String] =
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, _)) =>
       Seq(
@@ -138,19 +157,6 @@ def scalacSettings(scalaVersion: String): Seq[String] = {
         "-Xfatal-warnings"
       )
   }
-} ++ {
-  CrossVersion.partialVersion(scalaVersion) match {
-    case Some((2, 12)) =>
-      Seq(
-        "-Ypartial-unification", // Enable partial unification in type constructor inference
-        "-Xlint:unsound-match", // Pattern match may not be typesafe.
-        "-Xlint:nullary-override", // Warn when non-nullary `def f()' overrides nullary `def f'.
-        "-Xlint:by-name-right-associative", // By-name parameter of right associative operator.
-        "-Yno-adapted-args" // Do not adapt an argument list (either by inserting () or creating a tuple) to match the receiver.
-      )
-    case _ => Nil
-  }
-}
 
 //=============================== ALIASES ===============================
 addCommandAlias("check", ";clean;test")
