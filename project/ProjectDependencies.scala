@@ -37,8 +37,8 @@ object ProjectDependencies {
   object Generic {
 
     lazy val extraDependenciesForScala2_13: Seq[ModuleID] = Seq(
-      "com.softwaremill.magnolia1_2" % "magnolia_2.13" % "1.0.0-M5",
-      "org.scala-lang" % "scala-reflect" % "2.13.6"
+      "com.propensive" %% "magnolia" % "0.16.0",
+      "org.scala-lang" % "scala-reflect" % "2.13.6" % Provided
     )
 
     lazy val extraDependenciesForScala3: Seq[ModuleID] = Nil
