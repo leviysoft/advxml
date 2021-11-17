@@ -132,7 +132,7 @@ class TransformXmlRuleSyntaxTest extends AnyFunSuite {
     val ns: Elem = <Order></Order>
     val rule =
       (root.Missing ==> Append(<OrderLine PrimeLineNo="1"/>)).orElse {
-        (root       ==> Append(<OrderLine PrimeLineNo="1"/>))
+        (root ==> Append(<OrderLine PrimeLineNo="1"/>))
           .and(root ==> Append(<OrderLine PrimeLineNo="2"/>))
       }
 

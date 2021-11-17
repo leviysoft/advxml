@@ -44,7 +44,7 @@ class StressTest extends AnyFunSuite {
 
     val result: Try[NodeSeq] = elem.transform[Try](
       z ==> SetAttrs(
-        k"TEST"  := 1,
+        k"TEST" := 1,
         k"TEST2" := 100
       )
     )

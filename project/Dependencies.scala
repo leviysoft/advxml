@@ -10,6 +10,7 @@ object Dependencies {
   lazy val common: Seq[ModuleID] = Seq(
     // SCALA
     "org.typelevel" %% "cats-core" % "2.7.0" cross CrossVersion.binary,
+    "org.typelevel" %% "cats-effect" % "3.3.4" cross CrossVersion.binary,
     // XML
     "org.scala-lang.modules" %% "scala-xml" % "2.0.1" cross CrossVersion.binary,
     // TEST
