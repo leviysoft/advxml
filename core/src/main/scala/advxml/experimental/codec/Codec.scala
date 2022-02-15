@@ -1,5 +1,7 @@
 package advxml.experimental.codec
 
+/** Isomorphism XML ~ T
+  */
 class Codec[T] private (
   // XML => T
   val decoder: Decoder[T],

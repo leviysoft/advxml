@@ -16,9 +16,12 @@ class TextCursor(protected val lastCursor: NodeCursor) extends VCursor[XmlData, 
 //    modify(_ => v)
 
   // focus
-  private[advxml] override def focus(node: XmlTree): CursorResult[XmlData] =
-    focusOpt(node).flatMap {
-      case Some(value: XmlData) => CursorResult.Focused(value)
-      case None                 => CursorResult.MissingText(lastCursor.path)
-    }
+  override def focus(node: XmlTree): CursorResult[XmlData] =
+    lastCursor
+      .focus(node)
+      .map(_.text)
+      .flatMap {
+        case Some(value: XmlData) => CursorResult.Focused(value)
+        case None                 => CursorResult.MissingText(lastCursor.path)
+      }
 }

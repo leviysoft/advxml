@@ -1,15 +1,7 @@
 package advxml.experimental.cursor
 
 import advxml.experimental.codec.Decoder
-import advxml.experimental.cursor.CursorResult.{
-  Failed,
-  Focused,
-  LeftBoundLimitAttr,
-  MissingAttrAtIndex,
-  MissingAttrByKey,
-  MissingNode,
-  RightBoundLimitAttr
-}
+import advxml.experimental.cursor.CursorResult.{Failed, Focused, Missing}
 import cats.Show
 
 sealed trait CursorResult[+T] {
@@ -34,7 +26,27 @@ sealed trait CursorResult[+T] {
       case failed: Failed  => f(failed)
     }
 
-  override def toString: String = Show[CursorResult[Any]].show(this)
+  /** Return an `Option` which contains a value only if the result is `Focused`
+    */
+  def toOption[U >: T]: Option[U] =
+    this match {
+      case Focused(value) => Some(value)
+      case _              => None
+    }
+
+  def attempt[U >: T]: CursorResult[Either[Failed, U]] =
+    this match {
+      case Focused(value) => Focused(Right(value))
+      case failed: Failed => Focused(Left(failed))
+    }
+
+  /** Lift the result to `Option[T]`, any error is mapped as `None`
+    */
+  def attemptOption[U >: T]: CursorResult[Option[U]] =
+    this match {
+      case Focused(value) => Focused(Some(value))
+      case _              => Focused(None)
+    }
 }
 
 object CursorResult extends CursorResultInstances {
@@ -42,6 +54,7 @@ object CursorResult extends CursorResultInstances {
   case class Focused[T](value: T) extends CursorResult[T]
   trait Failed extends CursorResult[Nothing] {
     val path: String
+    def asException: CursorFailureException = CursorFailureException(this)
   }
   trait Missing extends Failed {
     val path: String
@@ -68,18 +81,15 @@ object CursorResult extends CursorResultInstances {
   case class RightBoundLimitAttr(path: String, lastKey: String) extends FailedAttribute with Missing
 
   // ops
+  case class CursorFailureException(failed: Failed) extends RuntimeException(failed.toString)
   def fromOption[T](opt: Option[T])(ifEmpty: => CursorResult[T]): CursorResult[T] = {
     opt.fold(ifEmpty)(Focused(_))
   }
 }
 private[advxml] sealed trait CursorResultInstances {
 
-  implicit val showInstanceForCursorResult: Show[CursorResult[Any]] = {
-    case MissingNode(path, nodeName)        => s"($path, '$nodeName')"
-    case MissingAttrByKey(path, key)        => s"($path, '$key')"
-    case MissingAttrAtIndex(path, index)    => s"($path, '$index')"
-    case LeftBoundLimitAttr(path, lastKey)  => s"($path, '$lastKey')"
-    case RightBoundLimitAttr(path, lastKey) => s"($path, '$lastKey')"
-    case r                                  => r.toString
+  implicit def showInstanceForCursorResult[T: Show]: Show[CursorResult[T]] = {
+    case Focused(value) => Show[T].show(value)
+    case failed: Failed => Show.fromToString[Failed].show(failed)
   }
 }

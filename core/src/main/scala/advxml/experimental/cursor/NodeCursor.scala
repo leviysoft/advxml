@@ -1,6 +1,6 @@
 package advxml.experimental.cursor
 
-import advxml.experimental.XmlTree
+import advxml.experimental.{XmlNode, XmlTree}
 import advxml.experimental.cursor.Cursor.CursorOp
 import advxml.experimental.cursor.CursorResult.{Failed, Focused}
 import cats.Show
@@ -75,7 +75,7 @@ object NodeCursor {
 
     override def history: List[Op] = Nil
 
-    private[advxml] override def focus(xml: XmlTree): CursorResult[XmlTree] =
+    override def focus(xml: XmlTree): CursorResult[XmlTree] =
       xml match {
         case node: XmlTree => CursorResult.Focused(node)
         case _             => CursorResult.WrongTarget("~", "Node") // TODO
@@ -84,7 +84,7 @@ object NodeCursor {
 
   class Simple(protected val lastCursor: NodeCursor, protected val lastOp: Op) extends NodeCursor {
 
-    private[advxml] override def focus(ns: XmlTree): CursorResult[XmlTree] = {
+    override def focus(ns: XmlTree): CursorResult[XmlTree] = {
       @tailrec
       def rec(
         history: List[NodeCursor.Op],
@@ -95,9 +95,9 @@ object NodeCursor {
           case Nil =>
             CursorResult.Focused(current)
           case op :: ops =>
-            val result = op match {
+            val result: CursorResult[XmlNode] = op match {
               case NodeCursor.Op.Down(nodeName) =>
-                current.findChild(nodeName) match {
+                current.content.flatMap(_.findChild(nodeName)) match {
                   case Some(node) =>
                     CursorResult.Focused(node)
                   case None =>

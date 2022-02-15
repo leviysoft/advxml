@@ -1,28 +1,20 @@
 package advxml.experimental.cursor
 
-import advxml.experimental.codec.Decoder
 import advxml.experimental.{Xml, XmlTree}
+import advxml.experimental.codec.Decoder
 import cats.Show
 
 import scala.language.dynamics
 
-sealed trait Cursor[X <: Xml] extends Serializable {
+sealed trait Cursor[+X <: Xml] extends GenericCursor[XmlTree, X] with Serializable {
 
   def path: String
 
 //  final def modify(modifier: Endo[X]): Modifier[X] =
 //    Modifier.endo(this, modifier)
 
-  def as[T: Decoder]: CursorWithDecoder[X, T] =
-    new CursorWithDecoder[X, T](this)
-
-  private[advxml] def focus(x: XmlTree): CursorResult[X]
-
-  private[advxml] def focusOpt(x: XmlTree): CursorResult[Option[X]] =
-    focus(x).fold[CursorResult[Option[X]]](x => CursorResult.Focused(Some(x))) {
-      case _: CursorResult.Missing => CursorResult.Focused(None)
-      case error                   => error
-    }
+  def as[T: Decoder: CursorResultInterpreter]: FreeCursor[T] =
+    FreeCursor[T](this)
 }
 
 object Cursor {

@@ -1,11 +1,9 @@
-import advxml.experimental.codec.Decoder
+import advxml.experimental.codec.{Decoder, Encoder}
 import advxml.experimental.cursor.NodeCursor.Root
-import advxml.experimental.{Xml, XmlTree}
+import advxml.experimental.{NodeContent, XmlAttribute, XmlNode, XmlRootNode, XmlTree}
 
-import scala.util.Try
-
-
-val node: XmlTree = XmlTree.fromNodeSeq[Try](
+//############### CURSOR ###############
+val node: XmlTree = XmlTree.fromNodeSeq(
   <root>
     <foo>
       <bar>
@@ -25,7 +23,7 @@ val node: XmlTree = XmlTree.fromNodeSeq[Try](
       </bar>
     </foo>
   </root>
-).get
+)
 
 val result1 =
   Root
@@ -38,18 +36,35 @@ val result1 =
     .down("foo")
     .down("bar")
     .down("roar")
-    .attr("ABC")
+    .attr("a")
     .focus(node)
 
-case class Foo(name: String, age: Int)
+
+// ############### DECODER ###############
+val tree: XmlTree = XmlTree.fromNodeSeq(<Foo name="TEST" age="10">100</Foo>)
+
+case class Foo(name: Option[String], bar: Int, text: Int)
 val dec: Decoder[Foo] =
   Decoder.fromCursor(c =>
     for {
-      foo <- c.attr("name").as[String]
+      foo <- c.attr("name").as[Option[String]]
       bar <- c.attr("age").as[Int]
-    } yield Foo(foo, bar)
+      text <- c.text.as[Int]
+    } yield Foo(foo, bar, text)
   )
 
-dec.decode(
-  XmlTree.fromNodeSeq[Try](<Foo name="TEST" age="10"/>).get
-)
+val result: Decoder.Result[Foo] = dec.decode(tree) //Valid(Foo(None,10))
+
+//############### ENCODER ###############
+
+
+val encoder: Encoder[Foo] = Encoder.of(t => {
+  XmlRootNode(
+    label = "Foo",
+    attributes = List(XmlAttribute("name", t.name.get), XmlAttribute("age", t.bar)),
+    content = Some(NodeContent.text(t.text))
+  )
+})
+
+
+val res1 = dec.decode(tree).toOption.map(encoder.encode).get

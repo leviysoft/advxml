@@ -25,8 +25,8 @@ object Xml {
     Resource
       .fromAutoCloseable(F.delay(inputSource))
       .evalMap(is => F.delay(XML.loadXML(new InputSource(is), XML.parser)))
-      .evalMap(fromNodeSeq[F](_))
+      .map(fromNodeSeq(_))
 
-  def fromNodeSeq[F[_]: MonadThrow](ns: NodeSeq): F[Xml] =
-    XmlTree.fromNodeSeq[F](ns).widen[Xml]
+  def fromNodeSeq(ns: NodeSeq): Xml =
+    XmlTree.fromNodeSeq(ns)
 }

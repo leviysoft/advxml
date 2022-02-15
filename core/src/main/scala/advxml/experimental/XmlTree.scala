@@ -1,11 +1,12 @@
 package advxml.experimental
 
-import cats.{Endo, MonadThrow, Show}
+import cats.{Endo, Show}
+import cats.data.NonEmptyList
 
 import scala.annotation.tailrec
 import scala.xml.*
 
-sealed trait XmlTree extends Xml with LabelOps with AttrsOps with ChildrenFindOps {
+sealed trait XmlTree extends Xml with LabelOps with AttrsOps with ContentOps {
 
   type SelfType <: XmlTree
 
@@ -13,113 +14,126 @@ sealed trait XmlTree extends Xml with LabelOps with AttrsOps with ChildrenFindOp
 
   val attributes: List[XmlAttribute]
 
-  private[advxml] val childrenOptional: Option[List[XmlNodeWithParent]] =
+  val content: Option[NodeContent] = None
+
+  val parentOptional: Option[XmlTree] = this match {
+    case XmlRootNode(_, _, _)     => None
+    case XmlNode(parent, _, _, _) => Some(parent)
+  }
+
+  val isRoot: Boolean = parentOptional.isEmpty
+
+  final def toRoot: XmlRootNode =
     this match {
-      case node: XmlRootNode => Some(node.children)
-      case node: XmlNode     => Some(node.children)
-      case _: XmlTextNode    => None
+      case t: XmlRootNode                         => t
+      case XmlNode(_, label, attributes, content) => XmlRootNode(label, attributes, content)
     }
 
-  private[advxml] val textOptional: Option[XmlData] = this match {
-    case node: XmlTextNode => node.text
-    case _                 => None
-  }
-
-  private[advxml] val parentOptional: Option[XmlNodeWithChildren] = this match {
-    case node: XmlNodeWithParent => Some(node.parent)
-    case _                       => None
-  }
-
-  val isRoot: Boolean = this match {
-    case _: XmlRootNode => true
-    case _              => false
+  def toNode(parent: XmlTree): XmlNode = {
+    this match {
+      case XmlRootNode(label, attributes, content) => XmlNode(parent, label, attributes, content)
+      case t: XmlNode                              => t.copy(parent = parent)
+    }
   }
 
   override final def toString: String =
     Show[XmlTree].show(this)
 }
-object XmlTree extends XmlTreeSyntax with XmlTreeInstances {
-
-  import cats.implicits.*
+object XmlTree extends XmlTreeInstances {
 
   @tailrec
-  def fromNodeSeq[F[_]](ns: NodeSeq)(implicit F: MonadThrow[F]): F[XmlTree] = {
+  def fromNodeSeq[F[_]](ns: NodeSeq): XmlTree = {
 
     def buildEmptyParent(n: Node): XmlRootNode =
       XmlRootNode(n.label, XmlAttribute.fromMetaData(n.attributes))
 
+    // indirection needed to let rec be tail recursive
+    def recall(parent: XmlTree, node: Elem): XmlTree =
+      rec(
+        parent = buildEmptyParent(node).toNode(parent),
+        leftNs = node.nonEmptyChildren.toList
+      )
+
+    @tailrec
     def rec(
-      parent: XmlNodeWithChildren,
+      parent: XmlTree,
       leftNs: List[Node],
-      processed: List[XmlNodeWithParent] = Nil
-    ): F[XmlTree] =
-      leftNs.filterNot(_.label.startsWith("#PCDATA")) match {
-        case Nil => F.pure(parent.updateChildren(_ ++ processed))
+      processed: List[XmlTree] = Nil
+    ): XmlTree =
+      leftNs match {
+        case Nil =>
+          parent.updateIfPresent { _ =>
+            processed match {
+              case Nil => parent.content
+              case ls =>
+                NonEmptyList
+                  .fromList(ls)
+                  .map(_.map(_.asInstanceOf[XmlNode]))
+                  .map(NodeContent.children)
+            }
+          }
         case x :: xs =>
           x match {
-            // NODES
-            case node: Elem =>
-              rec(
-                parent = buildEmptyParent(node).toNode(parent),
-                leftNs = node.nonEmptyChildren.toList
-              ).flatMap(subNode => {
-                rec(
-                  parent    = parent,
-                  leftNs    = xs,
-                  processed = processed :+ subNode.asInstanceOf[XmlNodeWithParent]
-                )
-              })
+
+            // PCDATA
+            case atomNode: Atom[String] =>
+              processed.lastOption match {
+                case Some(last) =>
+                  rec(
+                    parent    = parent,
+                    leftNs    = xs,
+                    processed = processed.dropRight(1) :+ last.set(NodeContent.text(atomNode.data))
+                  )
+                case None =>
+                  rec(
+                    parent    = parent.set(NodeContent.text(atomNode.data)),
+                    leftNs    = xs,
+                    processed = Nil
+                  )
+              }
 
             // TEXT
-            case node: Text =>
+            case txtNode: Text =>
               rec(
                 parent = parent,
                 leftNs = xs,
-                processed = processed :+ XmlTextNode(
+                processed = processed :+ XmlNode(
                   parent,
-                  node.label,
-                  XmlAttribute.fromMetaData(node.attributes),
-                  Some(XmlString.fromScalaText(node))
+                  txtNode.label,
+                  XmlAttribute.fromMetaData(txtNode.attributes),
+                  Some(NodeContent.Text(XmlString.fromScalaText(txtNode)))
                 )
               )
-            case _ => F.raiseError(new UnsupportedOperationException("Unsupported yet."))
+
+            // NODES
+            case node: Elem =>
+              rec(
+                parent    = parent,
+                leftNs    = xs,
+                processed = processed :+ recall(parent, node)
+              )
           }
       }
 
     ns match {
       case node: Document =>
-        XmlTree.fromNodeSeq[F](node.docElem)
+        XmlTree.fromNodeSeq(node.docElem)
       case node: Node =>
         rec(
           buildEmptyParent(node),
           node.nonEmptyChildren.toList
         )
-      case _ =>
-        F.raiseError(
-          new UnsupportedOperationException("Unsupported yet.")
-        )
     }
   }
 }
-private[advxml] sealed trait XmlTreeSyntax {
-  implicit class XmlTreeSyntax(tree: XmlTree) {
 
-    val children: List[XmlNodeWithParent] =
-      tree.childrenOptional.getOrElse(Nil)
-
-    val text: Option[XmlData] =
-      tree.textOptional
-
-    val parent: Option[XmlNodeWithChildren] =
-      tree.parentOptional
-  }
-}
 private[advxml] sealed trait XmlTreeInstances {
 
+  // TODO
   implicit val showXmlTree: Show[XmlTree] =
     new Show[XmlTree] {
 
-      private def build(xt: XmlTree)(content: Option[String]): String =
+      private def build(xt: XmlTree, content: Option[String]): String =
         (content match {
           case None =>
             s"<${xt.label} ${xt.attributes.map(XmlAttribute.stringify).mkString(" ")}/>"
@@ -127,115 +141,73 @@ private[advxml] sealed trait XmlTreeInstances {
             s"<${xt.label} ${xt.attributes.map(XmlAttribute.stringify).mkString(" ")}>$cont</${xt.label}>"
         }).replace(s"${xt.label} >", s"${xt.label}>")
 
-      override def show(t: XmlTree): String =
-        t match {
-          case node: XmlRootNode =>
-            build(node)(node.children match {
-              case Nil => None
-              case ls  => Some(ls.mkString("\n"))
-            })
-          case node: XmlNode =>
-            build(node)(node.children match {
-              case Nil => None
-              case ls  => Some(ls.mkString("\t\n"))
-            })
-          case node: XmlTextNode =>
-            build(node)(node.text match {
-              case None       => None
-              case Some(text) => Some(text.toString)
-            })
-        }
+      override def show(t: XmlTree): String = {
+
+        def rec(t: XmlTree, stringBuilder: StringBuilder): String =
+          t.content match {
+            case None =>
+              stringBuilder.append(build(t, None)).toString()
+            case Some(NodeContent.Text(data)) =>
+              stringBuilder.append(build(t, Some(data.toString))).toString()
+            case Some(NodeContent.Children(childrenNel)) =>
+              build(
+                t,
+                Some(
+                  childrenNel
+                    .map(n => {
+                      rec(n, new StringBuilder)
+                    })
+                    .toList
+                    .mkString("\t\n")
+                )
+              )
+          }
+
+        rec(t, new StringBuilder())
+      }
     }
-}
-
-sealed trait XmlNodeWithChildren extends XmlTree with ChildrenOps {
-  type SelfType <: XmlNodeWithChildren
-  def children: List[XmlNodeWithParent]
-}
-
-sealed trait XmlNodeWithParent extends XmlTree with ParentOps {
-  override type SelfType <: XmlNodeWithParent
-  def parent: XmlNodeWithChildren
 }
 
 case class XmlRootNode(
   label: String,
-  attributes: List[XmlAttribute]    = Nil,
-  children: List[XmlNodeWithParent] = Nil
-) extends XmlNodeWithChildren {
+  attributes: List[XmlAttribute]            = Nil,
+  override val content: Option[NodeContent] = None
+) extends XmlTree {
 
   override type SelfType = XmlRootNode
 
-  def toNode(parent: XmlNodeWithChildren): XmlNode =
-    XmlNode(parent, label, attributes, children)
-
   // update ops
-  override def updateChildren(f: Endo[List[XmlNodeWithParent]]): XmlRootNode =
-    copy(children = f(children))
-
   override def updateLabel(f: Endo[String]): XmlRootNode =
     copy(label = f(label))
 
   override def updateAttrs(f: Endo[List[XmlAttribute]]): XmlRootNode =
     copy(attributes = f(attributes))
+
+  override def update(f: Endo[Option[NodeContent]]): XmlRootNode =
+    copy(content = f(content))
 }
 
 case class XmlNode(
-  private val _parent: XmlNodeWithChildren,
+  parent: XmlTree,
   label: String,
-  attributes: List[XmlAttribute]    = Nil,
-  children: List[XmlNodeWithParent] = Nil
-) extends XmlNodeWithChildren
-    with XmlNodeWithParent {
+  attributes: List[XmlAttribute]            = Nil,
+  override val content: Option[NodeContent] = None
+) extends XmlTree {
 
   override type SelfType = XmlNode
 
-  // parent ops
-  override def parent: XmlNodeWithChildren = _parent
-
   // update ops
-  override def updateChildren(f: Endo[List[XmlNodeWithParent]]): XmlNode =
-    copy(children = f(children))
-
   override def updateLabel(f: Endo[String]): XmlNode =
     copy(label = f(label))
 
   override def updateAttrs(f: Endo[List[XmlAttribute]]): XmlNode =
     copy(attributes = f(attributes))
-}
 
-case class XmlTextNode(
-  private val _parent: XmlNodeWithChildren,
-  label: String,
-  attributes: List[XmlAttribute] = Nil,
-  text: Option[XmlData]          = None
-) extends XmlTree
-    with XmlNodeWithParent
-    with TextOps {
-
-  override type SelfType = XmlTextNode
-
-  // parent ops
-  override def parent: XmlNodeWithChildren = _parent
-
-  // update ops
-  override def updateLabel(f: Endo[String]): XmlTextNode =
-    copy(label = f(label))
-
-  override def updateAttrs(f: Endo[List[XmlAttribute]]): XmlTextNode =
-    copy(attributes = f(attributes))
-
-  override def updateText(f: Endo[Option[XmlData]]): XmlTextNode =
-    copy(text = f(text))
+  override def update(f: Endo[Option[NodeContent]]): XmlNode =
+    copy(content = f(content))
 }
 
 // ######################## OPS ########################
-private[advxml] sealed trait ParentOps { $this: XmlTree =>
-
-  final def toRoot: XmlRootNode =
-    XmlRootNode(label, attributes, childrenOptional.getOrElse(Nil))
-}
-
 private[advxml] sealed trait LabelOps { $this: XmlTree =>
 
   def updateLabel(newLabel: String): SelfType =
@@ -270,39 +242,31 @@ private[advxml] sealed trait AttrsOps { $this: XmlTree =>
     attributes.find(_.key == key)
 }
 
-private[advxml] sealed trait ChildrenOps extends ChildrenFindOps { $this: XmlTree =>
+private[advxml] sealed trait ContentOps { $this: XmlTree =>
 
-  def appendChild(node: XmlNode): SelfType =
-    updateChildren(ls => ls :+ node)
+  def update(f: Endo[Option[NodeContent]]): SelfType
 
-  def prependChild(node: XmlNode): SelfType =
-    updateChildren(ls => node +: ls)
+  def set(content: Option[NodeContent]): SelfType =
+    update(_ => content)
 
-  def updateChildren(f: Endo[List[XmlNodeWithParent]]): SelfType
-}
-private[advxml] sealed trait ChildrenFindOps { $this: XmlTree =>
+  def set(content: NodeContent): SelfType =
+    set(Some(content))
 
-  def findChild(label: String): Option[XmlNodeWithParent] =
-    findChildBy(_.label == label)
+  def drain: SelfType =
+    set(None)
 
-  def findChildBy(p: XmlNodeWithParent => Boolean): Option[XmlNodeWithParent] =
-    childrenOptional.getOrElse(Nil).find(p)
-}
+  def updateIfPresent(f: NodeContent => Option[NodeContent]): SelfType =
+    update(a => a.flatMap(f))
 
-private[advxml] sealed trait TextOps { $this: XmlTextNode =>
+  def text: Option[XmlData] =
+    this.content.flatMap(_.text)
 
-  // text ops
-  def textOrEmpty: XmlData =
-    textOptional.getOrElse(XmlString.empty)
+  def children: List[XmlNode] =
+    this.content.map(_.children).getOrElse(Nil)
 
-  def setText(text: XmlData): XmlTextNode =
-    updateText(_ => Some(text))
+  val hasChildren: Boolean = children.nonEmpty
 
-  def removeText(): XmlTextNode =
-    updateText(_ => None)
+  val hasText: Boolean = text.nonEmpty
 
-  def updateTextIfPresent(f: Endo[XmlData]): XmlTextNode =
-    updateText(_.map(f))
-
-  def updateText(f: Endo[Option[XmlData]]): XmlTextNode
+  val isEmpty: Boolean = content.isEmpty
 }
