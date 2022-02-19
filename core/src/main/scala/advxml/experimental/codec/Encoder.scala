@@ -3,7 +3,7 @@ package advxml.experimental.codec
 import advxml.experimental.{Xml, XmlData, XmlString}
 import cats.Contravariant
 
-import scala.xml.NodeSeq
+import scala.xml.{Atom, NodeSeq}
 
 // T => XML
 trait Encoder[-T] {
@@ -52,11 +52,18 @@ object DataEncoder extends DataEncoderPrimitivesInstances {
 }
 
 private[advxml] trait DataEncoderPrimitivesInstances {
-  implicit val encoderString: DataEncoder[String]         = DataEncoder.of(XmlString(_))
+  implicit val encoderString: DataEncoder[String] = DataEncoder.of(XmlString(_))
+  implicit val encoderBoolean: DataEncoder[Boolean] = encoderString.contramap {
+    case true  => "true"
+    case false => "false"
+  }
   implicit val encoderChar: DataEncoder[Char]             = encoderString.contramap(_.toString)
   implicit val encoderInt: DataEncoder[Int]               = encoderString.contramap(_.toString)
   implicit val encoderLong: DataEncoder[Long]             = encoderString.contramap(_.toString)
   implicit val encoderFloat: DataEncoder[Float]           = encoderString.contramap(_.toString)
   implicit val encoderDouble: DataEncoder[Double]         = encoderString.contramap(_.toString)
   implicit val encoderBigDecimal: DataEncoder[BigDecimal] = encoderString.contramap(_.toString)
+
+  // std scala
+  implicit val encoderStdAtomStr: DataEncoder[Atom[String]] = encoderString.contramap(_.data.trim)
 }

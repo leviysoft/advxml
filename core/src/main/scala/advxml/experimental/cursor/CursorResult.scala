@@ -1,7 +1,7 @@
 package advxml.experimental.cursor
 
 import advxml.experimental.codec.Decoder
-import advxml.experimental.cursor.CursorResult.{Failed, Focused, Missing}
+import advxml.experimental.cursor.CursorResult.{Failed, Focused}
 import cats.Show
 
 sealed trait CursorResult[+T] {

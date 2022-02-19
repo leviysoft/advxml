@@ -18,9 +18,8 @@ case class XmlString(value: String) extends XmlData {
   def isEmpty: Boolean = value.isEmpty
 }
 object XmlString {
-  val empty: XmlString                                   = XmlString("")
-  def fromScalaAtom(xml: scala.xml.Atom[Any]): XmlString = XmlString(xml.data.toString)
-  def fromScalaText(xml: scala.xml.Text): XmlString      = XmlString(xml.text)
+  val empty: XmlString                              = XmlString("")
+  def fromScalaText(xml: scala.xml.Text): XmlString = XmlString(xml.text.trim)
 }
 
 case class XmlNumber[T <: Number](value: T) extends XmlData

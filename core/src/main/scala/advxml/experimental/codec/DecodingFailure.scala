@@ -5,11 +5,31 @@ import advxml.experimental.cursor.CursorResult
 
 trait DecodingResult
 
-case class DecodingFailure(reason: DecodingFailure.Reason)
+case class DecodingFailure(reason: DecodingFailureReason)
 object DecodingFailure {
-  sealed trait Reason
-  case class Error(ex: Throwable) extends Reason
-  case class NoTextAvailable(subject: Xml) extends Reason
-  case class CursorFailure(failed: CursorResult.Failed) extends Reason
-  case class Custom(message: String) extends Reason
+
+  def error(ex: Throwable): DecodingFailure =
+    DecodingFailure(DecodingFailureReason.Error(ex))
+
+  def noTextAvailable(subject: Xml): DecodingFailure =
+    DecodingFailure(DecodingFailureReason.NoTextAvailable(subject))
+
+  def cursorFailure(failed: CursorResult.Failed): DecodingFailure =
+    DecodingFailure(DecodingFailureReason.CursorFailure(failed))
+
+  def custom(message: String): DecodingFailure =
+    DecodingFailure(DecodingFailureReason.Custom(message))
+
+  def coproductUnmatch[T](actual: T, coproductValues: Seq[? <: T]): DecodingFailure =
+    DecodingFailure(DecodingFailureReason.CoproductUnmatch(actual, coproductValues))
+}
+
+sealed trait DecodingFailureReason
+object DecodingFailureReason {
+  case class Error(ex: Throwable) extends DecodingFailureReason
+  case class NoTextAvailable(subject: Xml) extends DecodingFailureReason
+  case class CursorFailure(failed: CursorResult.Failed) extends DecodingFailureReason
+  case class CoproductUnmatch[T](actual: T, coproductValues: Seq[? <: T])
+      extends DecodingFailureReason
+  case class Custom(message: String) extends DecodingFailureReason
 }

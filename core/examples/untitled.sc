@@ -1,6 +1,11 @@
+import advxml.experimental.{NodeContent, XmlTree}
 import advxml.experimental.codec.{Decoder, Encoder}
+import advxml.experimental.cursor.CursorResult
 import advxml.experimental.cursor.NodeCursor.Root
-import advxml.experimental.{NodeContent, XmlAttribute, XmlNode, XmlRootNode, XmlTree}
+import advxml.experimental.XmlAttribute.XmlAttrStringOps
+
+//############### PARSING from NODESEQ ###############
+val n1: XmlTree = XmlTree.fromNodeSeq(<root>TEST</root>)
 
 //############### CURSOR ###############
 val node: XmlTree = XmlTree.fromNodeSeq(
@@ -13,7 +18,9 @@ val node: XmlTree = XmlTree.fromNodeSeq(
               <root>
                 <foo>
                   <bar>
-                    <roar a="1" b="2" c="3">TEST</roar>
+                    <roar a="1" b="2" c="3">
+                      LOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREA LOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREALOREA
+                    </roar>
                   </bar>
                 </foo>
               </root>
@@ -24,8 +31,10 @@ val node: XmlTree = XmlTree.fromNodeSeq(
     </foo>
   </root>
 )
+node.findDeepChild("roar")
+XmlTree.toNodeSeq(node)
 
-val result1 =
+val result1: CursorResult[Int] =
   Root
     .down("foo")
     .down("bar")
@@ -37,11 +46,22 @@ val result1 =
     .down("bar")
     .down("roar")
     .attr("a")
+    .as[Int]
     .focus(node)
 
 
+val result1: CursorResult[Int] =
+  (Root \ "foo" \ "bar" \ "root" \ "foo"
+    \ "bar" \ "root" \ "foo" \ "bar"
+    \ "roar" attr "a").as[Int]
+    .focus(node)
+
 // ############### DECODER ###############
 val tree: XmlTree = XmlTree.fromNodeSeq(<Foo name="TEST" age="10">100</Foo>)
+
+
+val ressa = tree.findChild("foo")
+
 
 case class Foo(name: Option[String], bar: Int, text: Int)
 val dec: Decoder[Foo] =
@@ -59,11 +79,12 @@ val result: Decoder.Result[Foo] = dec.decode(tree) //Valid(Foo(None,10))
 
 
 val encoder: Encoder[Foo] = Encoder.of(t => {
-  XmlRootNode(
-    label = "Foo",
-    attributes = List(XmlAttribute("name", t.name.get), XmlAttribute("age", t.bar)),
-    content = Some(NodeContent.text(t.text))
-  )
+  XmlTree("Foo")
+    .withAttributes(
+      "name" := t.name.get,
+      "age"  := t.bar
+    )
+    .withText(t.text)
 })
 
 
