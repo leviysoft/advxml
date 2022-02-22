@@ -1,12 +1,12 @@
 package advxml.experimental.cursor
 
-import advxml.experimental.{Xml, XmlTree}
+import advxml.experimental.{Xml, XmlNode}
 import advxml.experimental.codec.Decoder
 import cats.Show
 
 import scala.language.dynamics
 
-sealed trait Cursor[+X <: Xml] extends GenericCursor[XmlTree, X] with Serializable {
+sealed trait Cursor[+X <: Xml] extends GenericCursor[XmlNode, X] with Serializable {
 
   def path: String
 

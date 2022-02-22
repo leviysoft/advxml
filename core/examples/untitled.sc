@@ -1,14 +1,14 @@
-import advxml.experimental.{NodeContent, XmlTree}
+import advxml.experimental.{Xml, XmlNode}
 import advxml.experimental.codec.{Decoder, Encoder}
 import advxml.experimental.cursor.CursorResult
 import advxml.experimental.cursor.NodeCursor.Root
 import advxml.experimental.XmlAttribute.XmlAttrStringOps
 
 //############### PARSING from NODESEQ ###############
-val n1: XmlTree = XmlTree.fromNodeSeq(<root>TEST</root>)
+val n1: XmlNode = Xml.fromNodeSeq(<root>TEST</root>)
 
 //############### CURSOR ###############
-val node: XmlTree = XmlTree.fromNodeSeq(
+val node: XmlNode = Xml.fromNodeSeq(
   <root>
     <foo>
       <bar>
@@ -32,7 +32,7 @@ val node: XmlTree = XmlTree.fromNodeSeq(
   </root>
 )
 node.findDeepChild("roar")
-XmlTree.toNodeSeq(node)
+Xml.toNodeSeq(node)
 
 val result1: CursorResult[Int] =
   Root
@@ -57,7 +57,7 @@ val result1: CursorResult[Int] =
     .focus(node)
 
 // ############### DECODER ###############
-val tree: XmlTree = XmlTree.fromNodeSeq(<Foo name="TEST" age="10">100</Foo>)
+val tree: XmlNode = Xml.fromNodeSeq(<Foo name="TEST" age="10">100</Foo>)
 
 
 val ressa = tree.findChild("foo")
@@ -79,7 +79,7 @@ val result: Decoder.Result[Foo] = dec.decode(tree) //Valid(Foo(None,10))
 
 
 val encoder: Encoder[Foo] = Encoder.of(t => {
-  XmlTree("Foo")
+  XmlNode("Foo")
     .withAttributes(
       "name" := t.name.get,
       "age"  := t.bar

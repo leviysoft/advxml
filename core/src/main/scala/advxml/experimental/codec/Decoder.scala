@@ -131,7 +131,7 @@ sealed private[advxml] trait DecoderPrimitivesInstances {
       }
 
       rec(data).validNel
-    case txtNode: XmlTree =>
+    case txtNode: XmlNode =>
       txtNode.text match {
         case Some(xmlData) => decodeString.decode(xmlData)
         case None          => DecodingFailure.noTextAvailable(txtNode).invalidNel

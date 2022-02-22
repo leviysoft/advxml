@@ -6,14 +6,14 @@ class XmlPrinterSuite extends munit.FunSuite {
 
   test("XmlPrinter.prettyString convert xml tree to well formatted XML string") {
 
-    val tree: XmlTree = XmlTree("Foo").withChild(
-      XmlTree("Bar")
+    val tree: XmlNode = XmlNode("Foo").withChild(
+      XmlNode("Bar")
         .withAttributes("F" := 'A')
         .withChild(
-          XmlTree("Test")
+          XmlNode("Test")
             .withAttributes("G" := 100L)
             .withChild(
-              XmlTree("Node")
+              XmlNode("Node")
                 .withAttributes("A" := 10, "B" := true)
                 .withText("Lorem ipsum dolor sit amet")
             )
@@ -35,14 +35,14 @@ class XmlPrinterSuite extends munit.FunSuite {
 
   test("XmlPrinter.stringify convert xml tree to un-formatted string") {
 
-    val tree: XmlTree = XmlTree("Foo").withChild(
-      XmlTree("Bar")
+    val tree: XmlNode = XmlNode("Foo").withChild(
+      XmlNode("Bar")
         .withAttributes("F" := 'A')
         .withChild(
-          XmlTree("Test")
+          XmlNode("Test")
             .withAttributes("G" := 100L)
             .withChild(
-              XmlTree("Node")
+              XmlNode("Node")
                 .withAttributes("A" := 10, "B" := true)
                 .withText("Lorem ipsum dolor sit amet")
             )

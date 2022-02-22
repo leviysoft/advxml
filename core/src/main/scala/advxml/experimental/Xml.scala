@@ -44,18 +44,18 @@ object Xml {
   }
 
   // FIXME: DEPENDS ON STD XML - LOW PERFORMANCE
-  def fromNodeSeq(ns: NodeSeq): XmlTree =
+  def fromNodeSeq(ns: NodeSeq): XmlNode =
     ns match {
       case node: Document =>
         fromNodeSeq(node.docElem)
       case e: Text =>
-        XmlTree(
+        XmlNode(
           label      = e.label,
           attributes = XmlAttribute.fromMetaData(e.attributes),
-          content    = Some(NodeContent.Text(XmlString.fromScalaText(e)))
+          content    = NodeContent.Text(XmlString.fromScalaText(e))
         )
       case e: Elem =>
-        val tree = XmlTree(
+        val tree = XmlNode(
           e.label,
           XmlAttribute.fromMetaData(e.attributes)
         )
@@ -70,35 +70,35 @@ object Xml {
         val content = if (neChildLen > 0) {
           val head = neChild.head
           if (head.isAtom) {
-            Some(NodeContent.text(head.asInstanceOf[Atom[?]].data.toString.trim))
+            NodeContent.text(head.asInstanceOf[Atom[?]].data.toString.trim)
           } else {
 
-            val res: Array[XmlTree] = new Array[XmlTree](neChildLen)
+            val res: Array[XmlNode] = new Array[XmlNode](neChildLen)
             for (idx <- 0 until neChildLen) {
-              res.update(idx, fromNodeSeq(neChild(idx)).withParent(tree.id))
+              res.update(idx, fromNodeSeq(neChild(idx)))
             }
 
-            NodeContent.childrenSeq(res.toList)
+            NodeContent.childrenSeq(res.toList).getOrElse(NodeContent.empty)
           }
 
-        } else None
+        } else NodeContent.empty
 
         tree.withContent(content)
     }
 
-  def toNodeSeq(tree: XmlTree): NodeSeq = {
+  def toNodeSeq(tree: XmlNode): NodeSeq = {
 
     @tailrec
-    def rec(ls: List[XmlTree], acc: Seq[Node]): Seq[Node] =
+    def rec(ls: List[XmlNode], acc: Seq[Node]): Seq[Node] =
       ls match {
         case ::(head, tail) => rec(tail, (acc :+ toNodeSeq(head)).flatten)
         case Nil            => acc
       }
 
     val content: Seq[Node] = tree.content match {
-      case Some(NodeContent.Text(data))            => new Atom[String](data.toString)
-      case Some(NodeContent.Children(childrenNel)) => rec(childrenNel.toList, Nil)
-      case None                                    => Nil
+      case NodeContent.Text(data)            => new Atom[String](data.toString)
+      case NodeContent.Children(childrenNel) => rec(childrenNel.toList, Nil)
+      case NodeContent.Empty                 => Nil
     }
 
     Elem(
@@ -117,14 +117,14 @@ object Xml {
   def fromJavaxDocument(doc: JDocument): Xml = {
 
     // TODO: NO STACK SAFE
-    def rec(ns: JNode): XmlTree = {
-      val baseNode: XmlTree = XmlTree(ns.getNodeName)
+    def rec(ns: JNode): XmlNode = {
+      val baseNode: XmlNode = XmlNode(ns.getNodeName)
         .withAttributes(XmlAttribute.fromJavaNodeMap(ns.getAttributes))
 
       if (ns.hasChildNodes) {
         val childNodes: NodeList   = ns.getChildNodes
         val len: Int               = childNodes.getLength
-        val result: Array[XmlTree] = new Array[XmlTree](len)
+        val result: Array[XmlNode] = new Array[XmlNode](len)
         for (i <- 0 until len) {
           result(i) = rec(childNodes.item(i))
         }

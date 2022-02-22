@@ -1,6 +1,6 @@
 package advxml.experimental.cursor
 
-import advxml.experimental.XmlTree
+import advxml.experimental.XmlNode
 import advxml.experimental.cursor.Cursor.CursorOp
 import advxml.experimental.cursor.CursorResult.{Failed, Focused}
 import cats.Show
@@ -11,7 +11,7 @@ import scala.language.dynamics
 
 /** Vertical cursor for nodes
   */
-sealed trait NodeCursor extends Dynamic with VCursor[XmlTree, NodeCursor] {
+sealed trait NodeCursor extends Dynamic with VCursor[XmlNode, NodeCursor] {
 
   def history: List[NodeCursor.Op]
 
@@ -81,24 +81,24 @@ object NodeCursor {
 
     override def history: List[Op] = Nil
 
-    override def focus(xml: XmlTree): CursorResult[XmlTree] =
+    override def focus(xml: XmlNode): CursorResult[XmlNode] =
       CursorResult.Focused(xml)
   }
 
   class Simple(protected val lastCursor: NodeCursor, protected val lastOp: Op) extends NodeCursor {
 
-    override def focus(ns: XmlTree): CursorResult[XmlTree] = {
+    override def focus(ns: XmlNode): CursorResult[XmlNode] = {
       @tailrec
       def rec(
         history: List[NodeCursor.Op],
         currentPath: List[NodeCursor.Op],
-        current: XmlTree
-      ): CursorResult[XmlTree] = {
+        current: XmlNode
+      ): CursorResult[XmlNode] = {
         history match {
           case Nil =>
             CursorResult.Focused(current)
           case op :: ops =>
-            val result: CursorResult[XmlTree] = op match {
+            val result: CursorResult[XmlNode] = op match {
               case NodeCursor.Op.Down(nodeName) =>
                 current.findChild(nodeName) match {
                   case Some(node) =>

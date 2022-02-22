@@ -1,6 +1,6 @@
 package advxml.experimental.cursor
 
-import advxml.experimental.{XmlAttribute, XmlTree}
+import advxml.experimental.{XmlAttribute, XmlNode}
 import advxml.experimental.cursor.AttrCursor.Op
 import advxml.experimental.cursor.Cursor.CursorOp
 import advxml.experimental.cursor.CursorResult.*
@@ -29,10 +29,10 @@ class AttrCursor(protected val vCursor: NodeCursor, op: AttrCursor.Op)
 
   // focus
 //  private[advxml]
-  override def focus(xml: XmlTree): CursorResult[XmlAttribute] = {
+  override def focus(xml: XmlNode): CursorResult[XmlAttribute] = {
 
     // TODO: tail rec
-    def applyFocus(node: XmlTree, op: Op): CursorResult[XmlAttribute] =
+    def applyFocus(node: XmlNode, op: Op): CursorResult[XmlAttribute] =
       op match {
         case Op.SelectAttr(key) =>
           CursorResult.fromOption(

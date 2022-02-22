@@ -2,7 +2,7 @@ package advxml.experimental
 
 object XmlPrinter {
 
-  def stringify(tree: XmlTree): String =
+  def stringify(tree: XmlNode): String =
     prettyString(
       tree         = tree,
       returnOnNode = false,
@@ -11,14 +11,14 @@ object XmlPrinter {
     )
 
   def prettyString(
-    tree: XmlTree,
+    tree: XmlNode,
     returnOnNode: Boolean    = true,
     indentChar: Option[Char] = Some(' '),
     maxTextSize: Option[Int] = Some(30)
   ): String = {
 
     def build(
-      tree: XmlTree,
+      tree: XmlNode,
       contentOpt: Option[String],
       deep: Int,
       isText: Boolean
@@ -47,19 +47,19 @@ object XmlPrinter {
       }
     }
 
-    def rec(t: XmlTree, stringBuilder: StringBuilder, deep: Int): String =
+    def rec(t: XmlNode, stringBuilder: StringBuilder, deep: Int): String =
       t.content match {
-        case None =>
+        case NodeContent.Empty =>
           stringBuilder
             .append(build(tree = t, contentOpt = None, deep = deep, isText = false))
             .toString()
-        case Some(NodeContent.Text(data)) =>
+        case NodeContent.Text(data) =>
           stringBuilder
             .append(
               build(tree = t, contentOpt = Some(data.toString), deep = deep, isText = true)
             )
             .toString()
-        case Some(NodeContent.Children(childrenNel)) =>
+        case NodeContent.Children(childrenNel) =>
           build(
             tree = t,
             contentOpt = Some(

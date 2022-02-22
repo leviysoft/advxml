@@ -1,6 +1,6 @@
 package advxml.experimental.cursor
 
-import advxml.experimental.{Xml, XmlTree}
+import advxml.experimental.{Xml, XmlNode}
 import advxml.experimental.codec.Decoder
 import cats.data.Validated.{Invalid, Valid}
 
@@ -26,7 +26,7 @@ object FreeCursor {
 
         // TODO this smell
         val cursorResult: CursorResult[Xml] = xml match {
-          case tree: XmlTree => cursor.focus(tree)
+          case tree: XmlNode => cursor.focus(tree)
           case x             => CursorResult.Focused(x)
         }
 

@@ -1,6 +1,6 @@
 package advxml.experimental.cursor
 
-import advxml.experimental.{XmlData, XmlTree}
+import advxml.experimental.{XmlData, XmlNode}
 
 /** Vertical cursor for node Text
   */
@@ -16,7 +16,7 @@ class TextCursor(protected val lastCursor: NodeCursor) extends VCursor[XmlData, 
 //    modify(_ => v)
 
   // focus
-  override def focus(node: XmlTree): CursorResult[XmlData] =
+  override def focus(node: XmlNode): CursorResult[XmlData] =
     lastCursor
       .focus(node)
       .map(_.text)
