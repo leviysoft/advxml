@@ -2,16 +2,14 @@ package advxml.experimental.cursor
 
 import advxml.experimental.{Xml, XmlNode}
 import advxml.experimental.codec.Decoder
-import cats.Show
+import advxml.experimental.modifier.Modifier
+import cats.{Endo, Show}
 
 import scala.language.dynamics
 
 sealed trait Cursor[+X <: Xml] extends GenericCursor[XmlNode, X] with Serializable {
 
   def path: String
-
-//  final def modify(modifier: Endo[X]): Modifier[X] =
-//    Modifier.endo(this, modifier)
 
   def as[T: Decoder: CursorResultInterpreter]: FreeCursor[T] =
     FreeCursor[T](this)

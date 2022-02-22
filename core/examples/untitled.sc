@@ -59,7 +59,6 @@ val result1: CursorResult[Int] =
 // ############### DECODER ###############
 val tree: XmlNode = Xml.fromNodeSeq(<Foo name="TEST" age="10">100</Foo>)
 
-
 val ressa = tree.findChild("foo")
 
 
@@ -89,3 +88,15 @@ val encoder: Encoder[Foo] = Encoder.of(t => {
 
 
 val res1 = dec.decode(tree).toOption.map(encoder.encode).get
+
+
+
+
+
+
+
+val ORIGINAL: XmlNode = Xml.fromNodeSeq(<Test name="FOO" age="20">200</Test>)
+
+
+val modifyResult = Root.modify(_.withText("HEEEEEY!")).modify(ORIGINAL)
+ORIGINAL

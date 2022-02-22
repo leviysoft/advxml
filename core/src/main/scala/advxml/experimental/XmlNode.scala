@@ -3,14 +3,20 @@ package advxml.experimental
 import advxml.experimental.codec.DataEncoder
 import cats.{Endo, Show}
 
-case class XmlNode(
-  label: String,
-  attributes: Seq[XmlAttribute] = Nil,
-  content: NodeContent          = NodeContent.empty
+class XmlNode private (
+  private var mLabel: String,
+  private var mAttributes: Seq[XmlAttribute],
+  private var mContent: NodeContent
 ) extends Xml
     with LabelOps
     with AttrsOps
     with ContentOps {
+
+  def label: String = mLabel
+
+  def attributes: Seq[XmlAttribute] = mAttributes
+
+  def content: NodeContent = mContent
 
   // update ops
   override def updateLabel(f: Endo[String]): XmlNode =
@@ -19,6 +25,20 @@ case class XmlNode(
   override def updateAttrs(f: Endo[Seq[XmlAttribute]]): XmlNode =
     copy(attributes = f(attributes))
 
+  def copy(
+    label: String                 = this.label,
+    attributes: Seq[XmlAttribute] = this.attributes,
+    content: NodeContent          = this.content
+  ): XmlNode = new XmlNode(label, attributes, content)
+
+  /** ##### BE CAREFUL! ##### */
+  private[advxml] def mute(f: Endo[XmlNode]): Unit = {
+    val n: XmlNode = f(this)
+    this.mLabel      = n.label
+    this.mAttributes = n.attributes
+    this.mContent    = n.content
+  }
+
   private[advxml] override def updateContent(f: Endo[NodeContent]): XmlNode =
     copy(content = f(content))
 
@@ -26,7 +46,14 @@ case class XmlNode(
     Show[XmlNode].show(this)
 }
 
-object XmlNode extends XmlTreeInstances
+object XmlNode extends XmlTreeInstances {
+
+  def apply(
+    label: String,
+    attributes: Seq[XmlAttribute] = Nil,
+    content: NodeContent          = NodeContent.empty
+  ): XmlNode = new XmlNode(label, attributes, content)
+}
 
 private[advxml] sealed trait XmlTreeInstances {
   implicit val showXmlTree: Show[XmlNode] = XmlPrinter.prettyString(_)

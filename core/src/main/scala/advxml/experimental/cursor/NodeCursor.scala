@@ -3,7 +3,8 @@ package advxml.experimental.cursor
 import advxml.experimental.XmlNode
 import advxml.experimental.cursor.Cursor.CursorOp
 import advxml.experimental.cursor.CursorResult.{Failed, Focused}
-import cats.Show
+import advxml.experimental.modifier.Modifier
+import cats.{Endo, Show}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -17,6 +18,9 @@ sealed trait NodeCursor extends Dynamic with VCursor[XmlNode, NodeCursor] {
 
   override lazy val path: String = CursorOp.buildOpsPath(history)
 
+  final def modify(modifier: Endo[XmlNode]): Modifier =
+    Modifier(this, modifier)
+
   // modifier
 //  def append[T: Encoder](t: => T): Modifier[Node] =
 //    modify(_.updateChild(_ ++ Encoder[T].encode(t)))
@@ -26,14 +30,13 @@ sealed trait NodeCursor extends Dynamic with VCursor[XmlNode, NodeCursor] {
 //
 //  def set[T: Encoder](t: => T): Modifier[Node] =
 //    modify(_ => Encoder[T].encode(t))
-
+//
 //  def replace[T: Encoder: Decoder](f: Endo[T]): Modifier[Xml, Xml] =
 //    modify(n => f(Decoder[T].decode(n))
 //
-//  def rename(k: => String): Modifier[Xml, Xml] = ???
+//  def rename(k: => String): Modifier = ???
 //
-//  def remove: Modifier[Node] =
-//    set(Xml.Empty)
+//  def drain: Modifier = ???
 
   // node
   def selectDynamic(nodeName: String): NodeCursor =

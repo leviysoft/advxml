@@ -1,68 +1,61 @@
-//package advxml.experimental.modifier
-//
-//import advxml.experimental.Xml
-//import advxml.experimental.cursor.{Cursor, CursorResult}
-//import cats.Endo
-//
-//sealed trait Modifier[Focus] {
-//
-//  val cursor: Cursor[Focus]
-//
-//  val modifier: Focus => ModifierResult[Focus]
-//
-//  def apply(xml: Xml): ModifierResult[Xml] =
-//    cursor.focus(xml) match {
-//      case failed: CursorResult.Failed => ModifierResult.CursorFailed(failed)
-//      case focused: CursorResult.Focused[Focus] =>
-//        val newValue: ModifierResult[Focus] = modifier(focused.value)
-//
-//        Node.fromNodeSeq(xml)
-//
-//        Console.println(newValue)
-//        ModifierResult.Modified(xml)
-//    }
-//}
-//object Modifier {
-//
-//  import cats.implicits.*
-//
-//  def apply[Focus](
-//    cursor: Cursor[Focus],
-//    modifier: Focus => ModifierResult[Focus]
-//  ): Modifier[Focus] =
-//    ComposableModifier(cursor, modifier)
-//
-//  def endo[Focus](
-//    cursor: Cursor[Focus],
-//    modifier: Endo[Focus]
-//  ): Modifier[Focus] =
-//    Modifier(cursor, modifier.andThen(ModifierResult.Modified(_)))
-//
-//  def const[Focus](
-//    cursor: Cursor[Focus],
-//    result: => ModifierResult[Focus]
-//  ): Modifier[Focus] =
-//    Modifier(cursor, _ => result)
-//
-//  def pure[Focus](
-//    cursor: Cursor[Focus],
-//    result: => Focus
-//  ): Modifier[Focus] =
-//    const(cursor, result.pure[ModifierResult])
-//
-//  def fail[Focus](
-//    cursor: Cursor[Focus],
-//    result: => ModifierResult.ModifierFailed
-//  ): Modifier[Focus] =
-//    const(cursor, result)
-//}
-//
-//case class ComposableModifier[Focus](
-//  cursor: Cursor[Focus],
-//  modifier: Focus => ModifierResult[Focus]
-//) extends Modifier[Focus]
-//
-//case class FinalModifier[Focus](
-//  cursor: Cursor[Focus],
-//  modifier: Focus => ModifierResult[Focus]
-//) extends Modifier[Focus]
+package advxml.experimental.modifier
+
+import advxml.experimental.XmlNode
+import advxml.experimental.cursor.{CursorResult, NodeCursor}
+import cats.{Endo, Monoid}
+
+/** Create a modified copy of input [[XmlNode]]
+  */
+sealed trait Modifier {
+  def modify(node: XmlNode): ModifierResult[XmlNode]
+}
+
+object Modifier extends ModifierInstances {
+
+  def apply(
+    f: XmlNode => ModifierResult[XmlNode]
+  ): Modifier = {
+    new Modifier {
+      override def modify(node: XmlNode): ModifierResult[XmlNode] = f(node)
+    }
+  }
+
+  def apply(
+    cursor: NodeCursor,
+    modifier: Endo[XmlNode]
+  ): Modifier =
+    Modifier(node => {
+      val nodeClone = node.copy()
+      cursor.focus(nodeClone) match {
+        case failed: CursorResult.Failed => ModifierResult.CursorFailed(failed)
+        case CursorResult.Focused(focus) =>
+          focus.mute(modifier)
+          ModifierResult.Modified(focus)
+      }
+    })
+
+  val id: Modifier = Modifier(ModifierResult.pure)
+
+  def const(
+    result: => ModifierResult[XmlNode]
+  ): Modifier =
+    Modifier(_ => result)
+
+  def fail(
+    result: => ModifierResult.ModifierFailed
+  ): Modifier =
+    const(result)
+}
+
+sealed trait ModifierInstances {
+
+  implicit val monoidForModifier: Monoid[Modifier] = new Monoid[Modifier] {
+    override def empty: Modifier = Modifier.id
+    override def combine(x: Modifier, y: Modifier): Modifier = Modifier(node => {
+      x.modify(node) match {
+        case ModifierResult.Modified(value)        => y.modify(value)
+        case failed: ModifierResult.ModifierFailed => failed
+      }
+    })
+  }
+}
