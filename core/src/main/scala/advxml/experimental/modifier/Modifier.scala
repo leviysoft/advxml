@@ -6,24 +6,16 @@ import cats.{Endo, Monoid}
 
 /** Create a modified copy of input [[XmlNode]]
   */
-sealed trait Modifier {
-  def modify(node: XmlNode): ModifierResult[XmlNode]
+trait Modifier[T] {
+  def apply(node: T): ModifierResult[T]
 }
 
 object Modifier extends ModifierInstances {
 
   def apply(
-    f: XmlNode => ModifierResult[XmlNode]
-  ): Modifier = {
-    new Modifier {
-      override def modify(node: XmlNode): ModifierResult[XmlNode] = f(node)
-    }
-  }
-
-  def apply(
     cursor: NodeCursor,
     modifier: Endo[XmlNode]
-  ): Modifier =
+  ): Modifier[XmlNode] =
     Modifier(node => {
       val nodeClone = node.copy()
       cursor.focus(nodeClone) match {
@@ -34,26 +26,30 @@ object Modifier extends ModifierInstances {
       }
     })
 
-  val id: Modifier = Modifier(ModifierResult.pure)
+  def apply[T](
+    f: T => ModifierResult[T]
+  ): Modifier[T] = (input: T) => f(input)
 
-  def const(
-    result: => ModifierResult[XmlNode]
-  ): Modifier =
+  def id[T]: Modifier[T] = Modifier(ModifierResult.pure)
+
+  def const[T](
+    result: => ModifierResult[T]
+  ): Modifier[T] =
     Modifier(_ => result)
 
-  def fail(
+  def failed[T](
     result: => ModifierResult.ModifierFailed
-  ): Modifier =
+  ): Modifier[T] =
     const(result)
 }
 
 sealed trait ModifierInstances {
 
-  implicit val monoidForModifier: Monoid[Modifier] = new Monoid[Modifier] {
-    override def empty: Modifier = Modifier.id
-    override def combine(x: Modifier, y: Modifier): Modifier = Modifier(node => {
-      x.modify(node) match {
-        case ModifierResult.Modified(value)        => y.modify(value)
+  implicit def monoidForModifier[T]: Monoid[Modifier[T]] = new Monoid[Modifier[T]] {
+    override def empty: Modifier[T] = Modifier.id[T]
+    override def combine(x: Modifier[T], y: Modifier[T]): Modifier[T] = Modifier[T](node => {
+      x.apply(node) match {
+        case ModifierResult.Modified(value)        => y.apply(value)
         case failed: ModifierResult.ModifierFailed => failed
       }
     })

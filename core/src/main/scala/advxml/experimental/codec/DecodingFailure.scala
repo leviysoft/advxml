@@ -20,7 +20,7 @@ object DecodingFailure {
   def custom(message: String): DecodingFailure =
     DecodingFailure(DecodingFailureReason.Custom(message))
 
-  def coproductUnmatch[T](actual: T, coproductValues: Seq[? <: T]): DecodingFailure =
+  def coproductUnmatch[T](actual: Any, coproductValues: Seq[? <: T]): DecodingFailure =
     DecodingFailure(DecodingFailureReason.CoproductUnmatch(actual, coproductValues))
 }
 
@@ -29,7 +29,7 @@ object DecodingFailureReason {
   case class Error(ex: Throwable) extends DecodingFailureReason
   case class NoTextAvailable(subject: Xml) extends DecodingFailureReason
   case class CursorFailure(failed: CursorResult.Failed) extends DecodingFailureReason
-  case class CoproductUnmatch[T](actual: T, coproductValues: Seq[? <: T])
+  case class CoproductUnmatch[T](actual: Any, coproductValues: Seq[? <: T])
       extends DecodingFailureReason
   case class Custom(message: String) extends DecodingFailureReason
 }

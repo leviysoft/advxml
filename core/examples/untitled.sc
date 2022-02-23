@@ -75,14 +75,14 @@ val dec: Decoder[Foo] =
 val result: Decoder.Result[Foo] = dec.decode(tree) //Valid(Foo(None,10))
 
 //############### ENCODER ###############
-val encoder: Encoder[Foo] = Encoder.of(t => {
+val encoder: Encoder[Foo] = Encoder.of(t =>
   XmlNode("Foo")
     .withAttributes(
       "name" := t.name.get,
       "age"  := t.bar
     )
     .withText(t.text)
-})
+)
 
 
 val res1 = dec.decode(tree).toOption.map(encoder.encode).get
@@ -96,5 +96,9 @@ val res1 = dec.decode(tree).toOption.map(encoder.encode).get
 val ORIGINAL: XmlNode = Xml.fromNodeSeq(<Test name="FOO" age="20">200</Test>)
 
 
-val modifyResult = Root.modify(_.withText("HEEEEEY!")).modify(ORIGINAL)
+val modifyResult = Root
+  .modify(_.withText("HEEEEEY!"))
+  .apply(ORIGINAL)
+
+
 ORIGINAL

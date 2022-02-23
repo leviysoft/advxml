@@ -8,13 +8,6 @@ class TextCursor(protected val lastCursor: NodeCursor) extends VCursor[XmlData, 
 
   override lazy val path: String = s"${lastCursor.path} | text"
 
-//  // modifier
-//  def clean: Modifier[XmlString] =
-//    set(XmlString.empty)
-//
-//  def set(v: => XmlString): Modifier[XmlString] =
-//    modify(_ => v)
-
   // focus
   override def focus(node: XmlNode): CursorResult[XmlData] =
     lastCursor

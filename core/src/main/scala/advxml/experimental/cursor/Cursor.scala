@@ -2,8 +2,7 @@ package advxml.experimental.cursor
 
 import advxml.experimental.{Xml, XmlNode}
 import advxml.experimental.codec.Decoder
-import advxml.experimental.modifier.Modifier
-import cats.{Endo, Show}
+import cats.Show
 
 import scala.language.dynamics
 
