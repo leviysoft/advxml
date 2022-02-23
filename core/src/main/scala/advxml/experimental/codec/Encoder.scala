@@ -22,10 +22,11 @@ object Encoder extends EncoderInstances {
 
   def of[T](f: T => Xml): Encoder[T] = (t: T) => f(t)
 
-  def fromNodeSeq[T](f: T => NodeSeq): Encoder[T] =
-    Encoder.of(t => Xml.fromNodeSeq(f(t)))
-
   def pure[T](ns: => Xml): Encoder[T] = Encoder(_ => ns)
+
+  // TODO: DEPENDS ON STD XML - MOVE TO PROPER MODULE
+  def ofNodeSeq[T](f: T => NodeSeq): Encoder[T] =
+    Encoder.of(t => Xml.fromNodeSeq(f(t)))
 }
 
 private[advxml] trait EncoderInstances extends EncoderPrimitivesInstances {

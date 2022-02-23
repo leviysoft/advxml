@@ -75,8 +75,6 @@ val dec: Decoder[Foo] =
 val result: Decoder.Result[Foo] = dec.decode(tree) //Valid(Foo(None,10))
 
 //############### ENCODER ###############
-
-
 val encoder: Encoder[Foo] = Encoder.of(t => {
   XmlNode("Foo")
     .withAttributes(

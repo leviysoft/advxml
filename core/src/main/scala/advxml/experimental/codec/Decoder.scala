@@ -6,7 +6,7 @@ import advxml.experimental.cursor.{CursorResult, FreeCursor, NodeCursor}
 import advxml.experimental.cursor.NodeCursor.Root
 import cats.{Applicative, MonadError}
 import cats.data.*
-import cats.data.Validated.{Invalid, Valid}
+import cats.data.Validated.Invalid
 
 import scala.collection.Factory
 import scala.util.Try
@@ -48,14 +48,17 @@ object Decoder extends DecoderInstances {
     def failed[T](f: DecodingFailure): Result[T] = f.invalidNel
   }
 
-  def id: Decoder[Xml] = fromF(identity)
+  lazy val id: Decoder[Xml] = of(Result.success)
 
   def apply[T: Decoder]: Decoder[T] = implicitly[Decoder[T]]
 
   def of[T](f: Xml => Decoder.Result[T]): Decoder[T] = (xml: Xml) => f(xml)
 
   def pure[T](t: => T): Decoder[T] =
-    Decoder.fromF(_ => t)
+    const(Result.success(t))
+
+  def failed[T](r: DecodingFailure): Decoder[T] =
+    const(Result.failed(r))
 
   def const[T](r: => Decoder.Result[T]): Decoder[T] =
     Decoder.of(_ => r)
@@ -69,9 +72,6 @@ object Decoder extends DecoderInstances {
         case failed: CursorResult.Failed => Result.failed(DecodingFailure.cursorFailure(failed))
       }
     }
-
-  def fromF[T](f: Xml => T): Decoder[T] =
-    of(f.andThen(Valid(_)))
 
   def fromEither[T](f: Xml => Either[DecodingFailure, T]): Decoder[T] =
     id.emap(f)
@@ -90,8 +90,7 @@ private[advxml] trait DecoderInstances
 
   import cats.implicits.*
 
-  implicit def catsMonadErrorInstanceForDecoder[T]
-    : MonadError[Decoder, NonEmptyList[DecodingFailure]] =
+  implicit def monadErrorForDecoder[T]: MonadError[Decoder, NonEmptyList[DecodingFailure]] =
     new MonadError[Decoder, NonEmptyList[DecodingFailure]] {
 
       override def raiseError[A](e: NonEmptyList[DecodingFailure]): Decoder[A] =

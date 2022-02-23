@@ -15,15 +15,19 @@ object Xml {
 
   import cats.implicits.*
 
+  // TODO: DEPENDS ON CATS-EFFECT - MOVE TO PROPER MODULE
   def fromString[F[_]: Sync](string: String, charset: Charset = StandardCharsets.UTF_8): F[Xml] =
     fromSource[F](new ByteArrayInputStream(string.getBytes(charset))).use(_.pure[F])
 
+  // TODO: DEPENDS ON CATS-EFFECT - MOVE TO PROPER MODULE
   def loadFile[F[_]: Sync](file: File): Resource[F, Xml] =
     fromSource[F](new FileInputStream(file))
 
+  // TODO: DEPENDS ON CATS-EFFECT - MOVE TO PROPER MODULE
   def loadFile[F[_]: Sync](name: String): Resource[F, Xml] =
     fromSource[F](new FileInputStream(name))
 
+  // TODO: DEPENDS ON CATS-EFFECT - MOVE TO PROPER MODULE
   def fromSource[F[_]](inputSource: => InputStream)(implicit F: Sync[F]): Resource[F, Xml] = {
 
     def parse(inputSource: InputSource): Try[Xml] = Try {
@@ -43,7 +47,7 @@ object Xml {
       .evalMap(is => F.fromTry(parse(new InputSource(is))))
   }
 
-  // FIXME: DEPENDS ON STD XML - LOW PERFORMANCE
+  // TODO: DEPENDS ON STD XML - MOVE TO PROPER MODULE - LOW PERFORMANCE
   def fromNodeSeq(ns: NodeSeq): XmlNode =
     ns match {
       case node: Document =>
@@ -86,6 +90,7 @@ object Xml {
         tree.withContent(content)
     }
 
+  // TODO: DEPENDS ON STD XML - MOVE TO PROPER MODULE - LOW PERFORMANCE
   def toNodeSeq(tree: XmlNode): NodeSeq = {
 
     @tailrec
